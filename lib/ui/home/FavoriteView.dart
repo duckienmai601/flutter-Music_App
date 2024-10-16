@@ -9,6 +9,7 @@ class FavoriteViewModel extends ChangeNotifier {
   List<Song> get favoriteSongs => _favoriteSongs;
 
 
+
   void addFavorite(Song song) {
     if (!_favoriteSongs.contains(song)) {
       _favoriteSongs.add(song);

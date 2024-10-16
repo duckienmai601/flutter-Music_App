@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:music_app/ui/home/viewmodel.dart';
 import 'package:music_app/ui/settings/settings.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:provider/provider.dart';
+import '../../data/Firebase_auth/createData.dart';
 import '../../data/model/song.dart';
 import '../newmusic/music.dart';
 import '../now_playing/playing.dart';
@@ -91,7 +93,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
   final List<Song> favoriteSongs = [];
   late MusicAppViewModel _viewModel;
   late User? currentUser = FirebaseAuth.instance.currentUser;
-
 
   @override
   void initState() {
@@ -312,16 +313,33 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 
   void handleAddToFavorites(Song song) {
-    final favoritesProvider = Provider.of<FavoriteViewModel>(context, listen: false);
+    final favoritesProvider =
+        Provider.of<FavoriteViewModel>(context, listen: false);
+
+    final getData = Data();
 
     if (!favoritesProvider.isFavorite(song)) {
       favoritesProvider.addFavorite(song);
+      // Tạo đối tượng UserModel từ bài hát
+      Song newUser = Song(
+        id: '',
+        // Firebase sẽ tự tạo ID
+        title: song.title,
+        artist: song.artist,
+        image: song.image,
+        album: song.album,
+        source: song.source,
+        duration: song.duration,
+      );
+      // Lưu dữ liệu vào Firestore
+      getData.createData(newUser);
       showCupertinoDialog(
         context: context,
         builder: (BuildContext context) {
           return CupertinoAlertDialog(
             title: const Text('Added to Favorites'),
-            content: Text('${song.title} has been added to your favorite list.'),
+            content:
+                Text('${song.title} has been added to your favorite list.'),
             actions: <Widget>[
               CupertinoDialogAction(
                 child: const Text('OK'),
@@ -338,7 +356,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
   void navigateToFavorites() {
     currentUser = FirebaseAuth.instance.currentUser;
-    if(currentUser == null) {
+    if (currentUser == null) {
       showCupertinoDialog(
         context: context,
         builder: (BuildContext context) {
@@ -642,3 +660,17 @@ class SongSearchDelegate extends SearchDelegate {
     );
   }
 }
+
+Stream<List<Song>> _readData() {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  final userCollection = FirebaseFirestore.instance
+      .collection("users")
+      .doc(currentUser?.uid)
+      .collection("songs");
+  return userCollection.snapshots().map((querySnapShot) => querySnapShot.docs
+      .map(
+        (e) => Song.fromSnapShot(e),
+      )
+      .toList());
+}
+

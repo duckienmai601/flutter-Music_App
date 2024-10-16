@@ -1,12 +1,15 @@
 import 'dart:math';
 
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../data/Firebase_auth/createData.dart';
 import '../../data/model/song.dart';
 import '../home/FavoriteView.dart';
 import 'audio_player_manager.dart';
@@ -130,9 +133,22 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
   void handleAddToFavorites(Song song) {
     final favoritesProvider = Provider.of<FavoriteViewModel>(context, listen: false);
+    var getData = Data();
 
     if (!favoritesProvider.isFavorite(song)) {
       favoritesProvider.addFavorite(song);
+      // Tạo đối tượng UserModel từ bài hát
+      Song newUser = Song(
+        id: '', // Firebase sẽ tự tạo ID
+        title: song.title,
+        artist: song.artist,
+        image: song.image,
+        album: song.album,
+        source: song.source,
+        duration: song.duration,
+      );
+      // Lưu dữ liệu vào Firestore
+      getData.createData(newUser);
       showCupertinoDialog(
         context: context,
         builder: (BuildContext context) {
@@ -287,14 +303,21 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                         ],
                       ),
                       IconButton(
-                        onPressed: () {
-                          final favoritesProvider = Provider.of<FavoriteViewModel>(context, listen: false);
+                        onPressed: () async {
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          final userCollection = FirebaseFirestore.instance
+                              .collection("users")
+                              .doc(currentUser?.uid)
+                              .collection("songs");
+                          final doc = await userCollection.doc(_song.id).get();
+                          final isFavorite = doc.exists;
+
                           setState(() {
-                            _song.isFavorite = !_song.isFavorite;
+                            _song.isFavorite = !isFavorite;
                             if (_song.isFavorite) {
-                              favoritesProvider.addFavorite(_song);
+                              userCollection.doc(_song.id).set(_song.toJson());
                             } else {
-                              favoritesProvider.removeFavorite(_song);
+                              userCollection.doc(_song.id).delete();
                             }
                           });
 

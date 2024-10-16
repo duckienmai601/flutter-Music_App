@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Song {
   Song(
       {required this.id,
@@ -40,5 +42,29 @@ class Song {
   @override
   String toString() {
     return 'Song{id: $id, title: $title, album: $album, artist: $artist, source: $source, image: $image, duration: $duration}';
+  }
+
+  static Song fromSnapShot(DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    return Song(
+      id: snapshot['id'],
+      title: snapshot['title'],
+      artist: snapshot['artist'],
+      image: snapshot['image'],
+      album: snapshot['album'],
+      source: snapshot['source'],
+      duration: snapshot['duration'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'artist': artist,
+      'image': image,
+      'album': album,
+      'source': source,
+      'duration':duration,
+    };
   }
 }

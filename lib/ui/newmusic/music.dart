@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:music_app/ui/home/Favorite.dart';
+import 'package:music_app/ui/now_playing/mini_playing.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/model/song.dart';
@@ -35,7 +38,7 @@ class _MusicTabPageState extends State<MusicTabPage> {
   List<Song> favoriteSongs = [];
   List<Song> songs = [];
   late MusicAppViewModel _viewModel;
-
+  Song? _currentPlayingSong; // Variable to store the currently playing song
 
   String formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
@@ -66,12 +69,9 @@ class _MusicTabPageState extends State<MusicTabPage> {
   }
 
   void navigate(BuildContext context, Song song) {
-    Navigator.push(context, CupertinoPageRoute(builder: (context) {
-      return NowPlaying(
-        songs: songs,
-        playingSong: song,
-      );
-    }));
+    setState(() {
+      _currentPlayingSong = song; // Update the currently playing song
+    });
   }
 
   @override
@@ -90,82 +90,99 @@ class _MusicTabPageState extends State<MusicTabPage> {
         ),
         backgroundColor: Colors.white38,
       ),
-      body: Container(
-        color: Colors.white,
-        child: ListView.builder(
-          itemCount: songs.length,
-          itemBuilder: (context, index) {
-            final song = songs[index];
-            return Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: NetworkImage(song.image),
-                  ),
-                  title: Text(
-                    '${index + 1}. ${song.title}',
-                    style: const TextStyle(color: Colors.black),
-                  ),
-                  subtitle: Text(
-                    song.artist,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        formatDuration(song.duration),
+      body: Stack(
+        children: [
+          // Main content
+          Container(
+            color: Colors.white,
+            child: ListView.builder(
+              itemCount: songs.length,
+              itemBuilder: (context, index) {
+                final song = songs[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: NetworkImage(song.image),
+                      ),
+                      title: Text(
+                        '${index + 1}. ${song.title}',
                         style: const TextStyle(color: Colors.black),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () {
-                          final favoritesProvider = Provider.of<FavoriteViewModel>(context, listen: false);
-                          setState(() {
-                            song.isFavorite = !song.isFavorite;
-                            if (song.isFavorite) {
-                              favoritesProvider.addFavorite(song);
-                            } else {
-                              favoritesProvider.removeFavorite(song);
-                            }
-                          });
+                      subtitle: Text(
+                        song.artist,
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            formatDuration(song.duration),
+                            style: const TextStyle(color: Colors.black),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () async {
+                              final currentUser = FirebaseAuth.instance.currentUser;
+                              final userCollection = FirebaseFirestore.instance
+                                  .collection("users")
+                                  .doc(currentUser?.uid)
+                                  .collection("songs");
+                              final doc = await userCollection.doc(song.id).get();
+                              final isFavorite = doc.exists;
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                song.isFavorite
-                                    ? 'The Song has been added to Favorite'
-                                    : 'The Song has been removed from Favorite',
-                              ),
-                              duration: const Duration(seconds: 1),
+                              setState(() {
+                                song.isFavorite = !isFavorite;
+                                if (song.isFavorite) {
+                                  userCollection.doc(song.id).set(song.toJson());
+                                } else {
+                                  userCollection.doc(song.id).delete();
+                                }
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    song.isFavorite
+                                        ? 'The Song has been added to Favorite'
+                                        : 'The Song has been removed from Favorite',
+                                  ),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              song.isFavorite ? Icons.favorite : Icons.favorite_outline,
+                              color: song.isFavorite ? Colors.pink : Colors.black,
                             ),
-                          );
-
-                        },
-                        icon: Icon(
-                          song.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_outline,
-                          color: song.isFavorite ? Colors.pink : Colors.black,
-                        ),
-                        color: Colors.black,
-                      )
-                    ],
+                            color: Colors.black,
+                          ),
+                        ],
+                      ),
+                      onTap: () {
+                        navigate(context, songs[index]);
+                      },
+                    ),
                   ),
-                  onTap: () {
-                    navigate(context, songs[index]);
-                  },
-                ),
+                );
+              },
+            ),
+          ),
+          // MiniPlayingSong aligned at the bottom
+          if (_currentPlayingSong != null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: MiniPlayingSong(
+                songs: songs,
+                playingSong: _currentPlayingSong!,
               ),
-            );
-          },
-        ),
+            ),
+        ],
       ),
     );
   }
