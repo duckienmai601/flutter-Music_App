@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:music_app/ui/discovery/Discovery.dart';
 import 'package:music_app/ui/widget/showToast.dart';
+import 'package:provider/provider.dart';
+import '../home/FavoriteView.dart';
 import 'LoginPage.dart';
 import 'RegisterPage.dart';
 
@@ -11,10 +13,7 @@ class SettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
-        useMaterial3: true,
-      ),
+      theme: Provider.of<FavoriteViewModel>(context).themeData,
       home: const SettingTabPage(),
       debugShowCheckedModeBanner: false,
     );
@@ -29,18 +28,10 @@ class SettingTabPage extends StatefulWidget {
 }
 
 class _SettingTabPageState extends State<SettingTabPage> {
-  bool isDarkMode = false;
   String selectedLanguage = 'English';
 
   // Biến để kiểm tra xem người dùng đã đăng nhập hay chưa
   User? currentUser = FirebaseAuth.instance.currentUser;
-
-  // Hàm chuyển đổi chế độ tối
-  void toggleTheme(bool value) {
-    setState(() {
-      isDarkMode = value;
-    });
-  }
 
   // Hàm thay đổi ngôn ngữ
   void changeLanguage(String? language) {
@@ -66,8 +57,12 @@ class _SettingTabPageState extends State<SettingTabPage> {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: isDarkMode ? Colors.black : Colors.white,
+      backgroundColor: favoriteViewModel.themeData.colorScheme.surface,
       appBar: AppBar(
         title: Center(
           child: Text(
@@ -79,7 +74,7 @@ class _SettingTabPageState extends State<SettingTabPage> {
             ),
           ),
         ),
-        backgroundColor: isDarkMode ? Colors.black : Colors.white,
+        backgroundColor: favoriteViewModel.themeData.colorScheme.surface,
         iconTheme: IconThemeData(
           color: isDarkMode ? Colors.white : Colors.black,
         ),
@@ -141,6 +136,10 @@ class _SettingTabPageState extends State<SettingTabPage> {
                           const SizedBox(width: 10),
                           ElevatedButton(
                             onPressed: _logout, // Nút logout
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: favoriteViewModel.themeData.colorScheme.primary,
+                              backgroundColor: favoriteViewModel.themeData.colorScheme.secondary,
+                            ),
                             child: Text(
                               selectedLanguage == 'English'
                                   ? 'Logout'
@@ -175,8 +174,10 @@ class _SettingTabPageState extends State<SettingTabPage> {
                 ),
                 Switch(
                   value: isDarkMode,
-                  onChanged: toggleTheme,
-                  activeColor: Colors.purple,
+                  onChanged: (value) {
+                    favoriteViewModel.toggleTheme();
+                  },
+                  activeColor: Colors.white,
                 ),
               ],
             ),

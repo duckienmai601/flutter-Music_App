@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/model/song.dart';
+import '../home/FavoriteView.dart';
 import '../home/viewmodel.dart';
 import '../now_playing/playing.dart';
 
@@ -11,10 +13,7 @@ class DiscoveryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
-        useMaterial3: true,
-      ),
+      theme: Provider.of<FavoriteViewModel>(context).themeData,
       home: const DiscoveryTabPage(),
       debugShowCheckedModeBanner: false,
     );
@@ -56,24 +55,37 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
   }
 
   void _showSongsByArtist(String artist) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode = favoriteViewModel.themeData.brightness == Brightness.dark;
     List<Song> artistSongs = songs.where((song) => song.artist == artist).toList();
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
-        return ListView.builder(
-          itemCount: artistSongs.length,
-          itemBuilder: (context, index) {
-            return ListTile(
-              leading: Image.network(artistSongs[index].image),
-              title: Text(artistSongs[index].title),
-              subtitle: Text(artistSongs[index].artist),
-              onTap: () => navigate(context, artistSongs[index]),
-            );
-          },
+        return Container(
+          color: isDarkMode ? Colors.grey : Colors.white, // Adjust background color based on theme
+          child: ListView.builder(
+            itemCount: artistSongs.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                leading: Image.network(artistSongs[index].image),
+                title: Text(
+                  artistSongs[index].title,
+                  style: TextStyle(color: Colors.black), // Text color based on theme
+                ),
+                subtitle: Text(
+                  artistSongs[index].artist,
+                  style: TextStyle(color: Colors.black), // Subtitle color based on theme
+                ),
+                onTap: () => navigate(context, artistSongs[index]),
+              );
+            },
+          ),
         );
       },
     );
   }
+
 
   void navigate(BuildContext context, Song song) {
     Navigator.push(context, CupertinoPageRoute(builder: (context) {
@@ -89,27 +101,30 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        padding: EdgeInsetsDirectional.only(start: 16, end: 16),
-        leading: Padding(
-          padding: EdgeInsets.only(top: 2.0, left: 6.0),
-          child: Center(
-            child: Text(
-              'Discovery',
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context);
+    final isDarkMode = favoriteViewModel.themeData.brightness == Brightness.dark;
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: isDarkMode ? Colors.white38 : Colors.white,
+        elevation: 0,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 6.0),
+          child: Text(
+            'Discovery',
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
             ),
           ),
         ),
       ),
-      child: Container(
-        decoration: const BoxDecoration(
+      body: Container(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.white, Colors.white],
+            colors: isDarkMode
+                ? [Colors.black87, Colors.black54]
+                : [Colors.white, Colors.grey[100]!],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -118,24 +133,23 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 80,),
+              const SizedBox(height: 80),
               Padding(
-                padding: const EdgeInsets.only(top: 40,left: 30,bottom: 20),
-                child: RichText(
-                  text: const TextSpan(
-                    text: 'Recommend',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 35,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'Roboto', // Bạn có thể thay đổi font này nếu muốn
-                      decorationThickness: 2,
-                    ),
+                padding: const EdgeInsets.only(top: 40, left: 30, bottom: 20),
+                child: Text(
+                  'Recommend',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                    fontSize: 35,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Roboto',
+                    decorationThickness: 2,
                   ),
                 ),
               ),
+              // Recommend Section
               SizedBox(
-                height: 220, // Chiều cao của danh sách ngang
+                height: 220,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: songs.length,
@@ -145,6 +159,7 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                       child: GestureDetector(
                         onTap: () => navigate(context, songs[index]),
                         child: Card(
+                          color: isDarkMode ? Colors.grey[800] : Colors.white,
                           elevation: 5,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
@@ -163,15 +178,16 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                               const SizedBox(height: 8),
                               Text(
                                 songs[index].title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
+                                  color: isDarkMode ? Colors.white : Colors.black,
                                 ),
                               ),
                               Text(
                                 songs[index].artist,
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[800],
                                   fontSize: 14,
                                 ),
                               ),
@@ -183,24 +199,23 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 80,),
+              const SizedBox(height: 80),
               Padding(
-                padding: const EdgeInsets.only(top: 40,left: 30,bottom: 20),
-                child: RichText(
-                  text: const TextSpan(
-                    text: 'Albums',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 35,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'Roboto', // Bạn có thể thay đổi font này nếu muốn
-                      decorationThickness: 2,
-                    ),
+                padding: const EdgeInsets.only(top: 40, left: 30, bottom: 20),
+                child: Text(
+                  'Albums',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                    fontSize: 35,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Roboto',
+                    decorationThickness: 2,
                   ),
                 ),
               ),
+              // Albums Section
               SizedBox(
-                height: 220, // Chiều cao của danh sách ngang
+                height: 220,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: songs.map((song) => song.artist).toSet().length,
@@ -211,6 +226,7 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                       child: GestureDetector(
                         onTap: () => _showSongsByArtist(artist),
                         child: Card(
+                          color: isDarkMode ? Colors.grey[800] : Colors.white,
                           elevation: 5,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
@@ -229,9 +245,10 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                               const SizedBox(height: 8),
                               Text(
                                 artist,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
+                                  color: isDarkMode ? Colors.white : Colors.black,
                                 ),
                               ),
                             ],
@@ -242,24 +259,23 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 80,),
+              const SizedBox(height: 80),
               Padding(
-                padding: const EdgeInsets.only(top: 40,left: 30,bottom: 20),
-                child: RichText(
-                  text: const TextSpan(
-                    text: 'Recently Played',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 35,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'Roboto', // Bạn có thể thay đổi font này nếu muốn
-                      decorationThickness: 2,
-                    ),
+                padding: const EdgeInsets.only(top: 40, left: 30, bottom: 20),
+                child: Text(
+                  'Recently Played',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                    fontSize: 35,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Roboto',
+                    decorationThickness: 2,
                   ),
                 ),
               ),
+              // Recently Played Section
               SizedBox(
-                height: 220, // Chiều cao của danh sách ngang
+                height: 220,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: recentlyPlayed.length,
@@ -269,6 +285,7 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                       child: GestureDetector(
                         onTap: () => navigate(context, recentlyPlayed[index]),
                         child: Card(
+                          color: isDarkMode ? Colors.grey[800] : Colors.white,
                           elevation: 5,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
@@ -287,15 +304,16 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                               const SizedBox(height: 8),
                               Text(
                                 recentlyPlayed[index].title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
+                                  color: isDarkMode ? Colors.white : Colors.black,
                                 ),
                               ),
                               Text(
                                 recentlyPlayed[index].artist,
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                                   fontSize: 14,
                                 ),
                               ),
@@ -307,7 +325,6 @@ class _DiscoveryTabPageState extends State<DiscoveryTabPage> {
                   },
                 ),
               ),
-
             ],
           ),
         ),

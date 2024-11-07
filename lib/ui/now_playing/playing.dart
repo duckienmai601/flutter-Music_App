@@ -22,9 +22,14 @@ class NowPlaying extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NowPlayingPage(
-      songs: songs,
-      playingSong: playingSong,
+    final themeData = Provider.of<FavoriteViewModel>(context).themeData;
+
+    return Theme(
+      data: themeData, // Áp dụng theme từ FavoriteViewModel
+      child: NowPlayingPage(
+        songs: songs,
+        playingSong: playingSong,
+      ),
     );
   }
 }
@@ -50,15 +55,17 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   bool _isShuffle = false;
   late LoopMode _loopMode;
 
-
   void showBottomSheet(Song song) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       builder: (context) {
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           child: Container(
-            color: Colors.white,
+            color: isDarkMode ? Colors.grey : Colors.white,
             child: SingleChildScrollView(
               // Added SingleChildScrollView
               child: Column(
@@ -81,7 +88,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                     ),
                     subtitle: Text(
                       song.artist,
-                      style: const TextStyle(color: Colors.grey),
+                      style: const TextStyle(color: Colors.black),
                     ),
                     trailing: const Icon(Icons.keyboard_arrow_down,
                         color: Colors.black),
@@ -90,7 +97,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   _buildBottomSheetItem(
                       Icons.download, 'Download', _handleDownload),
                   _buildBottomSheetItem(Icons.favorite, 'Add to favorite list',
-                          () => handleAddToFavorites(song)),
+                      () => handleAddToFavorites(song)),
                   _buildBottomSheetItem(Icons.playlist_add, 'Add to playlist',
                       _handleAddToPlaylist),
                   _buildBottomSheetItem(
@@ -132,41 +139,64 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   }
 
   void handleAddToFavorites(Song song) {
-    final favoritesProvider = Provider.of<FavoriteViewModel>(context, listen: false);
-    var getData = Data();
+    final getData = Data();
 
-    if (!favoritesProvider.isFavorite(song)) {
-      favoritesProvider.addFavorite(song);
-      // Tạo đối tượng UserModel từ bài hát
-      Song newUser = Song(
-        id: '', // Firebase sẽ tự tạo ID
-        title: song.title,
-        artist: song.artist,
-        image: song.image,
-        album: song.album,
-        source: song.source,
-        duration: song.duration,
-      );
-      // Lưu dữ liệu vào Firestore
-      getData.createData(newUser);
-      showCupertinoDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return CupertinoAlertDialog(
-            title: const Text('Added to Favorites'),
-            content: Text('${song.title} has been added to your favorite list.'),
-            actions: <Widget>[
-              CupertinoDialogAction(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    }
+    getData.readData().first.then((favoriteSongs) {
+      bool alreadyInFavorites = favoriteSongs
+          .any((s) => s.title == song.title && s.artist == song.artist);
+
+      if (!alreadyInFavorites) {
+        Song newUser = Song(
+          id: '',
+          // Firebase sẽ tự tạo ID
+          title: song.title,
+          artist: song.artist,
+          image: song.image,
+          album: song.album,
+          source: song.source,
+          duration: song.duration,
+        );
+
+        getData.createData(newUser);
+
+        showCupertinoDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return CupertinoAlertDialog(
+              title: const Text('Added to Favorites'),
+              content:
+                  Text('${song.title} has been added to your favorite list.'),
+              actions: <Widget>[
+                CupertinoDialogAction(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        showCupertinoDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return CupertinoAlertDialog(
+              title: const Text('Song already in Favorites'),
+              content: Text('${song.title} is already in your favorite list.'),
+              actions: <Widget>[
+                CupertinoDialogAction(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    });
   }
 
   void _handleAddToPlaylist() {
@@ -221,24 +251,27 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
   @override
   Widget build(BuildContext context) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     const delta = 64;
     final radius = (screenWidth - delta) / 2;
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: const Text(
+        middle: Text(
           'Now Playing',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
         ),
         trailing: IconButton(
           onPressed: () {
             showBottomSheet(_song);
           },
-          icon: const Icon(Icons.more_horiz, color: Colors.black),
+          icon: Icon(Icons.more_horiz, color: isDarkMode ? Colors.white : Colors.black),
         ),
         backgroundColor: Colors.white38,
       ),
@@ -252,10 +285,10 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                 const SizedBox(height: 80),
                 Text(
                   _song.album,
-                  style: const TextStyle(fontSize: 15, color: Colors.black),
+                  style: TextStyle(fontSize: 15, color: isDarkMode ? Colors.white : Colors.black),
                 ),
                 const SizedBox(height: 16),
-                const Text('-----', style: TextStyle(color: Colors.black)),
+                Text('-----', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
                 const SizedBox(height: 48),
                 RotationTransition(
                   turns: Tween(begin: 0.0, end: 1.0).animate(_image),
@@ -284,7 +317,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                       IconButton(
                         onPressed: sharePress,
                         icon: const Icon(Icons.share_outlined),
-                        color: Colors.black,
+                        color: isDarkMode ? Colors.white : Colors.black,
                       ),
                       Column(
                         children: [
@@ -304,39 +337,49 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                       ),
                       IconButton(
                         onPressed: () async {
+                          // Kiểm tra xem bài hát đã có trong danh sách yêu thích chưa
+                          Data getData = Data();
+                          final favoriteSongs = await getData.readData().first;
+                          bool alreadyInFavorites = favoriteSongs.any((s) =>
+                              s.title == _song.title &&
+                              s.artist == _song.artist);
+
                           final currentUser = FirebaseAuth.instance.currentUser;
                           final userCollection = FirebaseFirestore.instance
                               .collection("users")
                               .doc(currentUser?.uid)
                               .collection("songs");
-                          final doc = await userCollection.doc(_song.id).get();
-                          final isFavorite = doc.exists;
 
                           setState(() {
-                            _song.isFavorite = !isFavorite;
-                            if (_song.isFavorite) {
-                              userCollection.doc(_song.id).set(_song.toJson());
-                            } else {
+                            if (alreadyInFavorites) {
+                              // Nếu bài hát đã có trong danh sách yêu thích, xóa nó
                               userCollection.doc(_song.id).delete();
+                              _song.isFavorite = false;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'The Song has been removed from Favorites'),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            } else {
+                              // Nếu bài hát chưa có, thêm nó vào danh sách yêu thích
+                              userCollection.doc(_song.id).set(_song.toJson());
+                              _song.isFavorite = true;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'The Song has been added to Favorites'),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
                             }
                           });
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                _song.isFavorite
-                                    ? 'The Song has been added to Favorite'
-                                    : 'The Song has been removed from Favorite',
-                              ),
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
                         },
                         icon: Icon(
-                          _song.isFavorite ? Icons.favorite : Icons.favorite_outline,
-                          color: _song.isFavorite ? Colors.pink : Colors.black,
+                            Icons.favorite_outline,
+                          color: Colors.pink
                         ),
-                        color: Colors.black,
                       ),
                     ],
                   ),
@@ -369,6 +412,9 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   }
 
   Widget _mediaButtons() {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return SizedBox(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -381,13 +427,13 @@ class _NowPlayingPageState extends State<NowPlayingPage>
           MediaButtonControl(
               function: _setPrevSong,
               icon: Icons.skip_previous,
-              color: Colors.black,
+              color: isDarkMode ? Colors.white : Colors.black,
               size: 36),
           _playButton(),
           MediaButtonControl(
               function: _setNextSong,
               icon: Icons.skip_next,
-              color: Colors.black,
+              color: isDarkMode ? Colors.white : Colors.black,
               size: 36),
           MediaButtonControl(
               function: _setRepeatOption,
@@ -400,6 +446,9 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   }
 
   StreamBuilder<DurationState> _progressBar() {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return StreamBuilder<DurationState>(
         stream: _audioPlayerManager.durationState,
         builder: (context, snapshot) {
@@ -415,7 +464,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
             barHeight: 5.0,
             barCapShape: BarCapShape.round,
             baseBarColor: Colors.grey.withOpacity(0.3),
-            progressBarColor: Colors.black,
+            progressBarColor: isDarkMode ? Colors.white : Colors.black,
             bufferedBarColor: Colors.grey.withOpacity(0.3),
             thumbColor: Colors.grey,
             thumbRadius: 10.0,
@@ -424,6 +473,9 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   }
 
   StreamBuilder<PlayerState> _playButton() {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return StreamBuilder(
         stream: _audioPlayerManager.player.playerStateStream,
         builder: (context, snapshot) {
@@ -446,7 +498,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   _image.repeat();
                 },
                 icon: Icons.play_arrow,
-                color: Colors.black,
+                color: isDarkMode ? Colors.white : Colors.black,
                 size: 48);
           } else if (processingState != ProcessingState.completed) {
             return MediaButtonControl(
@@ -456,7 +508,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   _currentAnimationPosition = _image.value;
                 },
                 icon: Icons.pause,
-                color: Colors.black,
+                color: isDarkMode ? Colors.white : Colors.black,
                 size: 48);
           } else {
             if (processingState == ProcessingState.completed) {
@@ -470,7 +522,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   _audioPlayerManager.player.seek(Duration.zero);
                 },
                 icon: Icons.replay,
-                color: Colors.black,
+                color: isDarkMode ? Colors.white : Colors.black,
                 size: 48);
           }
         });
@@ -483,7 +535,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   }
 
   Color? _getSuffle() {
-    return _isShuffle ? Colors.black : Colors.grey;
+    return _isShuffle ? Colors.red : Colors.grey;
   }
 
   void _setNextSong() {
@@ -544,7 +596,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   }
 
   Color? _getRepeatingIcon() {
-    return _loopMode == LoopMode.off ? Colors.grey : Colors.black;
+    return _loopMode == LoopMode.off ? Colors.grey : Colors.red;
   }
 
   void sharePress() {
@@ -580,6 +632,4 @@ class _MediaButtonControlState extends State<MediaButtonControl> {
       color: widget.color ?? Theme.of(context).colorScheme.primary,
     );
   }
-
-
 }

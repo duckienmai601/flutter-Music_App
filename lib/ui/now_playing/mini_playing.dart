@@ -8,7 +8,9 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:just_audio/just_audio.dart' as audioplayers;
 import 'package:just_audio/just_audio.dart';
 import 'package:music_app/ui/now_playing/playing.dart';
+import 'package:provider/provider.dart';
 import '../../data/model/song.dart';
+import '../home/FavoriteView.dart';
 import 'audio_player_manager.dart';
 
 class MiniPlayingSong extends StatefulWidget {
@@ -33,6 +35,7 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
   bool _isShuffle = false;
   bool isPlaying = false;
 
+
   @override
   void initState() {
     super.initState();
@@ -54,30 +57,11 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
     super.dispose();
   }
 
-  Widget _mediaButtons() {
-    return SizedBox(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          MediaButtonControl(
-            function: _setPrevSong,
-            icon: Icons.skip_previous,
-            color: Colors.black,
-            size: 36,
-          ),
-          _playButton(),
-          MediaButtonControl(
-            function: _setNextSong,
-            icon: Icons.skip_next,
-            color: Colors.black,
-            size: 36,
-          ),
-        ],
-      ),
-    );
-  }
 
   StreamBuilder<DurationState> _progressBar() {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return StreamBuilder<DurationState>(
       stream: _audioPlayerManager.durationState,
       builder: (context, snapshot) {
@@ -93,7 +77,7 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
           barHeight: 5.0,
           barCapShape: BarCapShape.round,
           baseBarColor: Colors.grey.withOpacity(0.3),
-          progressBarColor: Colors.black,
+          progressBarColor: isDarkMode ? Colors.grey : Colors.black,
           bufferedBarColor: Colors.grey.withOpacity(0.3),
           thumbColor: Colors.grey,
           thumbRadius: 10.0,
@@ -103,6 +87,9 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
   }
 
   StreamBuilder<audioplayers.PlayerState> _playButton() {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return StreamBuilder<audioplayers.PlayerState>(
       stream: _audioPlayerManager.player.playerStateStream,
       builder: (context, snapshot) {
@@ -126,7 +113,7 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
               _image.repeat();
             },
             icon: Icons.play_arrow,
-            color: Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
             size: 48,
           );
         } else if (processingState != ProcessingState.completed) {
@@ -137,7 +124,7 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
               _currentAnimationPosition = _image.value;
             },
             icon: Icons.pause,
-            color: Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
             size: 48,
           );
         } else {
@@ -152,7 +139,7 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
               _audioPlayerManager.player.seek(Duration.zero);
             },
             icon: Icons.replay,
-            color: Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
             size: 48,
           );
         }
@@ -196,12 +183,15 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
 
   @override
   Widget build(BuildContext context) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return Material(
       child: Container(
         height: 150,
         padding: EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white, // Background for the mini player
+          color: isDarkMode ? Colors.white38 : Colors.white, // Background for the mini player
           borderRadius: BorderRadius.circular(10),
         ),
         child: InkWell(
@@ -219,9 +209,26 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
               Row(
                 children: [
                   // Album art
-                  CircleAvatar(
-                    backgroundImage: NetworkImage(_currentSong.image),
-                    radius: 30, // Slightly larger for better visibility
+                  RotationTransition(
+                    turns: Tween(begin: 0.0, end: 1.0).animate(_image),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(30), // Giữ cho nó là hình tròn
+                      child: FadeInImage.assetNetwork(
+                        placeholder: 'assets/asd.jpg',
+                        image: _currentSong.image, // Dùng hình ảnh từ _currentSong
+                        fit: BoxFit.cover,
+                        width: 60, // Để duy trì cùng kích thước với CircleAvatar
+                        height: 60, // Để duy trì cùng kích thước với CircleAvatar
+                        imageErrorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            'assets/asd.jpg',
+                            fit: BoxFit.cover,
+                            width: 60,
+                            height: 60,
+                          );
+                        },
+                      ),
+                    ),
                   ),
                   SizedBox(width: 12), // Increased spacing
 
@@ -231,18 +238,18 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _currentSong.title ?? 'Unknown Title',
+                          _currentSong.title ,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16, // Increased font size for title
-                            color: Colors.black,
+                            color: isDarkMode ? Colors.white : Colors.black,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 4), // Spacing between title and artist
                         Text(
-                          _currentSong.artist ?? 'Unknown Artist',
+                          _currentSong.artist,
                           style: TextStyle(
                             fontSize: 14, // Increased font size for artist
                             color: Colors.grey,
@@ -259,7 +266,7 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
                   IconButton(
                     icon: Icon(Icons.skip_previous),
                     iconSize: 36,
-                    color: Colors.black,
+                    color: isDarkMode ? Colors.white : Colors.black,
                     onPressed: _setPrevSong,
                   ),
 
@@ -270,7 +277,7 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
                   IconButton(
                     icon: Icon(Icons.skip_next),
                     iconSize: 36,
-                    color: Colors.black,
+                    color: isDarkMode ? Colors.white : Colors.black,
                     onPressed: _setNextSong,
                   ),
                 ],
@@ -286,8 +293,5 @@ class _MiniPlayingSongState extends State<MiniPlayingSong>
       ),
     );
   }
-
-
-
 }
 

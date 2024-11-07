@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:music_app/Theme/theme.dart';
 import 'package:music_app/ui/discovery/Discovery.dart';
 import 'package:music_app/ui/home/viewmodel.dart';
 import 'package:music_app/ui/settings/settings.dart';
@@ -21,10 +22,7 @@ class MusicApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'App Âm Nhạc',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
-        useMaterial3: true,
-      ),
+      theme: Provider.of<FavoriteViewModel>(context).themeData,
       home: const MusicHomePage(),
       debugShowCheckedModeBanner: false,
     );
@@ -48,6 +46,7 @@ class _MusicHomePageState extends State<MusicHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<FavoriteViewModel>(context).themeData;
     return CupertinoPageScaffold(
       child: CupertinoTabScaffold(
         tabBar: CupertinoTabBar(
@@ -60,9 +59,9 @@ class _MusicHomePageState extends State<MusicHomePage> {
             BottomNavigationBarItem(
                 icon: Icon(Icons.settings), label: 'Setting'),
           ],
-          backgroundColor: Theme.of(context).colorScheme.onInverseSurface,
-          activeColor: Colors.black,
-          inactiveColor: Colors.grey,
+          backgroundColor: theme.colorScheme.surface,
+          activeColor: theme.colorScheme.primary,
+          inactiveColor: theme.colorScheme.onSurface,
         ),
         tabBuilder: (BuildContext context, int index) {
           return _tabs[index];
@@ -104,17 +103,20 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
-        leading: const Padding(
-          padding: EdgeInsets.only(top: 2.0, left: 6.0),
+        leading: Padding(
+          padding: const EdgeInsets.only(top: 2.0, left: 6.0),
           child: Text(
             'Home',
             style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: isDarkMode ? Colors.white : Colors.black,
             ),
           ),
         ),
@@ -130,9 +132,9 @@ class _HomeTabPageState extends State<HomeTabPage> {
                       songs: [], parent: _HomeTabPageState()),
                 );
               },
-              child: const Icon(
+              child: Icon(
                 CupertinoIcons.search,
-                color: Colors.black,
+                color: isDarkMode ? Colors.white : Colors.black,
               ),
             ),
             const SizedBox(width: 16), // Khoảng cách giữa hai biểu tượng
@@ -169,16 +171,19 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 
   ListView getListView() {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return ListView.separated(
       itemBuilder: (context, position) {
         if (position == 0) {
           return Padding(
             padding: const EdgeInsets.only(top: 40, left: 30),
             child: RichText(
-              text: const TextSpan(
+              text: TextSpan(
                 text: 'All Music',
                 style: TextStyle(
-                  color: Colors.black,
+                  color: isDarkMode ? Colors.white : Colors.black,
                   fontSize: 35,
                   fontWeight: FontWeight.w900,
                   fontFamily: 'Roboto',
@@ -231,13 +236,17 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 
   void showBottomSheet(Song song) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent, // Set the background to transparent
       builder: (context) {
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           child: Container(
-            color: Colors.white,
+            color: isDarkMode ? Colors.grey : Colors.white,
             child: SingleChildScrollView(
               // Added SingleChildScrollView
               child: Column(
@@ -255,14 +264,16 @@ class _HomeTabPageState extends State<HomeTabPage> {
                     ),
                     title: Text(
                       song.title,
-                      style: const TextStyle(
-                          color: Colors.black, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold
+                      ),
                     ),
                     subtitle: Text(
                       song.artist,
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Colors.black),
                     ),
-                    trailing: const Icon(Icons.keyboard_arrow_down,
+                    trailing: Icon(Icons.keyboard_arrow_down,
                         color: Colors.black),
                   ),
                   const Divider(color: Colors.grey),
@@ -313,45 +324,64 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 
   void handleAddToFavorites(Song song) {
-    final favoritesProvider =
-        Provider.of<FavoriteViewModel>(context, listen: false);
-
     final getData = Data();
 
-    if (!favoritesProvider.isFavorite(song)) {
-      favoritesProvider.addFavorite(song);
-      // Tạo đối tượng UserModel từ bài hát
-      Song newUser = Song(
-        id: '',
-        // Firebase sẽ tự tạo ID
-        title: song.title,
-        artist: song.artist,
-        image: song.image,
-        album: song.album,
-        source: song.source,
-        duration: song.duration,
-      );
-      // Lưu dữ liệu vào Firestore
-      getData.createData(newUser);
-      showCupertinoDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return CupertinoAlertDialog(
-            title: const Text('Added to Favorites'),
-            content:
-                Text('${song.title} has been added to your favorite list.'),
-            actions: <Widget>[
-              CupertinoDialogAction(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    }
+    getData.readData().first.then((favoriteSongs) {
+      bool alreadyInFavorites = favoriteSongs
+          .any((s) => s.title == song.title && s.artist == song.artist);
+
+      if (!alreadyInFavorites) {
+        Song newUser = Song(
+          id: '',
+          // Firebase sẽ tự tạo ID
+          title: song.title,
+          artist: song.artist,
+          image: song.image,
+          album: song.album,
+          source: song.source,
+          duration: song.duration,
+        );
+
+        getData.createData(newUser);
+
+        showCupertinoDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return CupertinoAlertDialog(
+              title: const Text('Added to Favorites'),
+              content:
+                  Text('${song.title} has been added to your favorite list.'),
+              actions: <Widget>[
+                CupertinoDialogAction(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        showCupertinoDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return CupertinoAlertDialog(
+              title: const Text('Song already in Favorites'),
+              content: Text('${song.title} is already in your favorite list.'),
+              actions: <Widget>[
+                CupertinoDialogAction(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    });
   }
 
   void navigateToFavorites() {
@@ -438,58 +468,64 @@ class _SongItemSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Card(
-        elevation: 4.0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10.0),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.only(
-            left: 24,
-            right: 8,
+      child: Container(
+        color: isDarkMode ? Colors.white24 : Colors.white10, // Màu nền cho vùng padding
+        child: Card(
+          elevation: 4.0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10.0),
           ),
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: FadeInImage.assetNetwork(
-              placeholder: 'assets/asd.jpg',
-              image: song.image,
-              width: 48,
-              height: 48,
-              imageErrorBuilder: (context, error, stackTrace) {
-                return Image.asset(
-                  'assets/asd.jpg',
-                  width: 48,
-                  height: 48,
-                );
+          child: ListTile(
+            contentPadding: const EdgeInsets.only(
+              left: 24,
+              right: 8,
+            ),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: FadeInImage.assetNetwork(
+                placeholder: 'assets/asd.jpg',
+                image: song.image,
+                width: 48,
+                height: 48,
+                imageErrorBuilder: (context, error, stackTrace) {
+                  return Image.asset(
+                    'assets/asd.jpg',
+                    width: 48,
+                    height: 48,
+                  );
+                },
+              ),
+            ),
+            title: Text(
+              song.title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            subtitle: Text(
+              song.artist,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            trailing: IconButton(
+              onPressed: () {
+                parent.showBottomSheet(song);
               },
+              icon: const Icon(Icons.more_horiz),
+              color: Colors.grey[700],
             ),
-          ),
-          title: Text(
-            song.title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          subtitle: Text(
-            song.artist,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
-          ),
-          trailing: IconButton(
-            onPressed: () {
-              parent.showBottomSheet(song);
+            onTap: () {
+              parent.navigate(song);
             },
-            icon: const Icon(Icons.more_horiz),
-            color: Colors.grey[700],
           ),
-          onTap: () {
-            parent.navigate(song);
-          },
         ),
       ),
     );
@@ -524,6 +560,10 @@ class SongSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildSuggestions(BuildContext context) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
+
     List<Song> matchQuery = songs.where((item) {
       final normalizedQuery = removeDiacritics(query.toLowerCase());
       final normalizedTitle = removeDiacritics(item.title.toLowerCase());
@@ -538,40 +578,43 @@ class SongSearchDelegate extends SearchDelegate {
       itemBuilder: (context, index) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Card(
-            elevation: 4.0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10.0),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16.0),
-              title: Text(
-                matchQuery[index].title,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+          child: Container(
+            color: isDarkMode ? Colors.white24 : Colors.white, // Màu nền cho vùng padding
+            child: Card(
+              elevation: 4.0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.0),
               ),
-              subtitle: Text(
-                matchQuery[index].artist,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16.0),
+                title: Text(
+                  matchQuery[index].title,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  matchQuery[index].image,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
+                subtitle: Text(
+                  matchQuery[index].artist,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
                 ),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    matchQuery[index].image,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                onTap: () {
+                  navigate(context, matchQuery[index]);
+                },
               ),
-              onTap: () {
-                navigate(context, matchQuery[index]);
-              },
             ),
           ),
         );
@@ -581,6 +624,10 @@ class SongSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildResults(BuildContext context) {
+    final favoriteViewModel = Provider.of<FavoriteViewModel>(context, listen: false);
+    final isDarkMode =
+        favoriteViewModel.themeData.brightness == Brightness.dark;
+
     List<Song> matchQuery = songs.where((item) {
       final lowerCaseQuery = query.toLowerCase();
       final titleMatch =
@@ -596,40 +643,43 @@ class SongSearchDelegate extends SearchDelegate {
       itemBuilder: (context, index) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Card(
-            elevation: 4.0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10.0),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16.0),
-              title: Text(
-                matchQuery[index].title,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+          child: Container(
+            color: isDarkMode ? Colors.white24 : Colors.white, // Màu nền cho vùng padding
+            child: Card(
+              elevation: 4.0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.0),
               ),
-              subtitle: Text(
-                matchQuery[index].artist,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16.0),
+                title: Text(
+                  matchQuery[index].title,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  matchQuery[index].image,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
+                subtitle: Text(
+                  matchQuery[index].artist,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
                 ),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    matchQuery[index].image,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                onTap: () {
+                  navigate(context, matchQuery[index]);
+                },
               ),
-              onTap: () {
-                navigate(context, matchQuery[index]);
-              },
             ),
           ),
         );
@@ -659,18 +709,5 @@ class SongSearchDelegate extends SearchDelegate {
       },
     );
   }
-}
-
-Stream<List<Song>> _readData() {
-  final currentUser = FirebaseAuth.instance.currentUser;
-  final userCollection = FirebaseFirestore.instance
-      .collection("users")
-      .doc(currentUser?.uid)
-      .collection("songs");
-  return userCollection.snapshots().map((querySnapShot) => querySnapShot.docs
-      .map(
-        (e) => Song.fromSnapShot(e),
-      )
-      .toList());
 }
 

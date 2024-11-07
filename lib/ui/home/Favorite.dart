@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:music_app/ui/now_playing/mini_playing.dart';
 import '../../data/Firebase_auth/createData.dart';
 import '../../data/model/song.dart';
 import '../now_playing/playing.dart';
@@ -32,6 +33,7 @@ class FavoritePage extends StatefulWidget {
 
 class _FavoritePageState extends State<FavoritePage> {
   final loadData = Data();
+
 
   Future<void> _deleteSong(String songId) async {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -95,12 +97,15 @@ class _FavoritePageState extends State<FavoritePage> {
                   },
                 ),
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) {
-                    return NowPlayingPage(
-                      songs: widget.songs,
-                      playingSong: song,
-                    );
-                  }));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NowPlaying(
+                        songs: widget.songs,
+                        playingSong: song,
+                      ),
+                    ),
+                  );
                 },
               );
             },
